@@ -90,7 +90,7 @@ import static net.openhft.lang.io.NativeBytes.wrap;
  *
  * @param <K> the entries key type § * @param <V> the entries value type
  */
-public class ReplicatedChronicleMap<K, KI, MKI extends MetaBytesInterop<K, ? super KI>,
+class ReplicatedChronicleMap<K, KI, MKI extends MetaBytesInterop<K, ? super KI>,
         V, VI, MVI extends MetaBytesInterop<V, ? super VI>>
         extends VanillaChronicleMap<K, KI, MKI, V, VI, MVI>
         implements Replica, EntryExternalizable, EntryResolver<K, V>, EngineReplicationLangBytes {
