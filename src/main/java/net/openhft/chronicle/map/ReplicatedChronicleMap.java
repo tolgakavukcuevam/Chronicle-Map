@@ -1250,17 +1250,17 @@ class ReplicatedChronicleMap<K, KI, MKI extends MetaBytesInterop<K, ? super KI>,
         private <KB, KBI, MKBI extends MetaBytesInterop<KB, ? super KBI>,
                 RV, VB extends RV, VBI, MVBI extends MetaBytesInterop<RV, ? super VBI>>
         RV putWithoutLock(
-                @Nullable ThreadLocalCopies copies, final @Nullable SegmentState segmentState,
+                @Nullable final ThreadLocalCopies copies, final @Nullable SegmentState segmentState,
                 MKBI metaKeyInterop, KBI keyInterop, KB key, long keySize,
                 InstanceOrBytesToInstance<KB, K> toKey,
                 GetValueInterops<VB, VBI, MVBI> getValueInterops, VB value,
                 InstanceOrBytesToInstance<? super VB, V> toValue,
                 long hash2, boolean replaceIfPresent,
-                ReadValue<RV> readValue, boolean resultUnused,
+                final ReadValue<RV> readValue, boolean resultUnused,
                 byte identifier, long timestamp, boolean remote) {
             segmentState.identifier = identifier;
             segmentState.timestamp = timestamp;
-            MultiMap hashLookup = hashLookup();
+            final MultiMap hashLookup = hashLookup();
 //            System.out.println("Before put size: " + hashLookup.size());
             SearchState searchState = segmentState.searchState;
             hashLookup.startSearch(hash2, searchState);
@@ -1317,9 +1317,31 @@ class ReplicatedChronicleMap<K, KI, MKI extends MetaBytesInterop<K, ? super KI>,
             VBI valueInterop = getValueInterops.getValueInterop(copies);
             MVBI metaValueInterop =
                     getValueInterops.getMetaValueInterop(copies, valueInterop, value);
-            long valueSize = metaValueInterop.size(valueInterop, value);
-            putEntry(segmentState, metaKeyInterop, keyInterop, key, keySize,
-                    metaValueInterop, valueInterop, value, entry, false);
+            final long valueSize = metaValueInterop.size(valueInterop, value);
+            try {
+                putEntry(segmentState, metaKeyInterop, keyInterop, key, keySize,
+                        metaValueInterop, valueInterop, value, entry, false);
+
+            }catch (IllegalStateException e){
+                final MultiStoreBytes tmpBytes = segmentState.tmpBytes;
+                hashLookup().forEach(new EntryConsumer() {
+                    @Override
+                    public void accept(long hash, long pos) {
+                        final Bytes entry = reuse(tmpBytes, offsetFromPos(pos));
+                        long keySize = keySizeMarshaller.readSize(entry);
+                        entry.skip(keySize);
+
+                        boolean isDeleted = entry.readBoolean();
+                        if(isDeleted) {
+                            entry.position(entry.position() - valueSize);
+                            hashLookup.removePrevPos(segmentState.searchState);
+                            long minEncodableValueSize = valueSizeMarshaller.minEncodableSize();
+                            long entrySizeInBytes = entrySize(keySize, minEncodableValueSize);
+                            clearEntry(pos, inChunks(entrySizeInBytes),entrySizeInBytes);
+                        }
+                    }
+                });
+            }
             entry.position(segmentState.valueSizePos - ADDITIONAL_ENTRY_BYTES);
             entry.writeLong(timestamp);
             entry.writeByte(identifier);

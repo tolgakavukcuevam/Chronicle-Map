@@ -2498,6 +2498,10 @@ class VanillaChronicleMap<K, KI, MKI extends MetaBytesInterop<K, ? super KI>,
             }
         }
 
+        final void clearEntry(long pos, int i, long entrySizeInBytes){
+            free(pos, inChunks(entrySizeInBytes));
+            decrementSize();
+        }
         /**
          * Returns value size, writes the entry (key, value, sizes) to the entry, after this method
          * call entry positioned after value bytes written (i. e. at the end of entry), sets entry
