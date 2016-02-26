@@ -6,10 +6,9 @@ import java.util.Map;
 /**
  * Created by tolga on 05/02/16.
  */
-public class ReplicatedChronicleMapAccessor implements ChronicleMapAccessor{
+public class ReplicatedChronicleMapAccessor{
 
-    @Override
-    public long findMaxTimeStamp(ChronicleMap map){
+    public static long findMaxTimeStamp(ChronicleMap map){
         ReplicatedChronicleMap replicatedMap = (ReplicatedChronicleMap) map;
         Iterator<Map.Entry> mapIterator = replicatedMap.entrySet().iterator();
 
